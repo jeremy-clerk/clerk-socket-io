@@ -3,7 +3,7 @@ import { useSocket } from "../components/useSocket.ts";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { cn } from "../lib/utils.ts";
-import { Ellipsis, XIcon } from "../components/icons.tsx";
+import { XIcon } from "../components/icons.tsx";
 
 type Recipient = {
   firstName: string;
@@ -74,11 +74,15 @@ export default function Dashboard() {
   useEffect(() => {
     if (recipientList && recipientList.length > 0) return;
     (async () => {
-      const token = await getToken();
-      if (!token) return;
-      const list = await getUserList(token);
-      if (!list) return;
-      setRecipientList(list);
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const list = await getUserList(token);
+        if (!list) return;
+        setRecipientList(list);
+      } catch (e) {
+        console.error(e);
+      }
     })();
   }, []);
 
@@ -96,7 +100,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     scrollToEnd();
-  }, [messages]);
+  }, [messages, activeRecipient]);
 
   const sendMessage = () => {
     if (!activeRecipient) return;
@@ -242,6 +246,9 @@ export default function Dashboard() {
                   value={currentMessage}
                   onChange={(e) => {
                     setCurrentMessage(e.target.value);
+                  }}
+                  onFocus={() => {
+                    scrollToEnd();
                   }}
                 />
                 <button

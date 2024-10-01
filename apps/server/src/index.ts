@@ -138,7 +138,9 @@ fastify.get("/api/users", async (request, reply) => {
     }
 
     if (!orgId) {
-      reply.code(200).send({ message: "No organization." });
+      //no active org or is a personal account
+      reply.code(200).send([]);
+      return;
     }
 
     const membershipList =
@@ -148,7 +150,7 @@ fastify.get("/api/users", async (request, reply) => {
 
     const sockets = await io.sockets.fetchSockets();
 
-    const users = membershipList.data.map((user) => {
+    return membershipList.data.map((user) => {
       return {
         firstName: user.publicUserData.firstName,
         lastName: user.publicUserData.lastName,
@@ -161,8 +163,6 @@ fastify.get("/api/users", async (request, reply) => {
           : "offline",
       };
     });
-
-    return users;
   } catch (e) {
     console.log(e);
     return reply.code(500).send({ message: "Server error." });
@@ -171,14 +171,19 @@ fastify.get("/api/users", async (request, reply) => {
 
 io.on("connection", async (socket: SocketWithAuth) => {
   if (!socket.request?.signedIn || !socket.request?.userId) {
+    //disconnect the socket and force it to reconnect.
     socket.emit("auth_error");
     socket.disconnect();
     return;
   }
+
   console.log("connection established.");
+
   const userId = socket.request.userId;
   const orgId = socket.request.orgId;
+
   socket.data.user = await clerkClient.users.getUser(userId);
+
   socket.data.orgId = orgId;
   socket.join(`org:${orgId}`);
 
@@ -191,7 +196,12 @@ io.on("connection", async (socket: SocketWithAuth) => {
   socket.on("message", async ({ user, content }) => {
     const userSockets = await io.sockets.fetchSockets();
     const recipient = userSockets.find((sock) => sock.data.user.id === user);
-    if (recipient) {
+    //Check to make sure that the recipient and sender are in the same org and that the 'from' user is the same as the 'socket' user.
+    if (
+      recipient &&
+      recipient.data.orgId === socket.data.orgId &&
+      content.from === socket.data.user.id
+    ) {
       recipient.emit("message", {
         id: content.id,
         from: content.from,

@@ -8,4 +8,5 @@ export const socket = (token: string) =>
       authorization: `Bearer ${token}`,
     },
     autoConnect: false,
+    retries: 5,
   });

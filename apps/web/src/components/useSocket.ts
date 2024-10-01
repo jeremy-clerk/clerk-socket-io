@@ -15,11 +15,17 @@ export const useSocket = (messageHandler: messageHandlerFn) => {
   });
 
   useEffect(() => {
+    //if Clerk isn't loaded or the socket is authenticated, return;
     if (socket || !isLoaded || socketState.authenticated) return;
+    //Reauthenticate the socket with a new JWT
     (async () => {
-      const token = await getToken();
-      if (!token) return;
-      setSocket(socketio(token));
+      try {
+        const token = await getToken();
+        if (!token) return;
+        setSocket(socketio(token));
+      } catch (e) {
+        console.error(e);
+      }
     })();
   }, [isLoaded, socketState]);
 
